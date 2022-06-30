@@ -224,8 +224,9 @@ single_n_inparties <- measures_full_aff %>%
 
 single_n_inparties <- data.frame(single_n_inparties) %>%
   group_by(single_n_inparties) %>%
-  summarise(n = n()) %>%
-  replace_na(list(single_n_inparties = 0))
+  summarise(n_exclusive = n()) %>%
+  replace_na(list(single_n_inparties = 0)) %>%
+  rename(n_inparties = single_n_inparties)
 ```
 
 ```{r}
@@ -238,9 +239,7 @@ multi_n_inparties <- measures_full_aff %>%
 ```
 
 ```{r}
-n_inparties_comparison <- cbindX(single_n_inparties, multi_n_inparties) %>%
-  rename(n_exclusive = n) %>%
-  dplyr::select(n_inparties, n_exclusive, n_multi) %>%
+n_inparties_comparison <- full_join(single_n_inparties, multi_n_inparties, by = 'n_inparties') %>%
   mutate(n_exclusive = replace_na(n_exclusive, 0))
 ```
 
