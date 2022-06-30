@@ -1,0 +1,624 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+source("load_packages.R")
+source("functions.R")
+source("setup.R")
+source("data_processing.R")
+```
+
+# Set up data and variables
+
+Split parties using the default threshold of 5. Parties with a PID score ABOVE 5 are considered inparties, parties with a PID score EQUAL TO OR BELOW 5 are considered outparties.
+
+```{r}
+measures <- df %>%
+  mutate(across(starts_with('closeness'), ~ na_if(.x, 99))) %>%
+  mutate(across(starts_with('support'), ~ na_if(.x, 99))) %>%
+  
+  mutate(affiliation_SDP = support_SDP + closeness_SDP) %>%
+  mutate(affiliation_NCP = support_NCP + closeness_NCP) %>%
+  mutate(affiliation_FP = support_FP + closeness_FP) %>%
+  mutate(affiliation_CPF = support_CPF + closeness_CPF) %>%
+  mutate(affiliation_GL = support_GL + closeness_GL) %>%
+  mutate(affiliation_LA = support_LA + closeness_LA) %>%
+  mutate(affiliation_SPP = support_SPP + closeness_SPP) %>%
+  mutate(affiliation_CD = support_CD + closeness_CD) %>%
+
+  mutate(across(starts_with('affiliation_'), ~ .x - 1)) %>%
+  
+  mutate(socdis_SDP = socdis1_SDP + socdis2_SDP) %>%
+  mutate(socdis_NCP = socdis1_NCP + socdis2_NCP) %>%
+  mutate(socdis_FP = socdis1_FP + socdis2_FP) %>%
+  mutate(socdis_CPF = socdis1_CPF + socdis2_CPF) %>%
+  mutate(socdis_GL = socdis1_GL + socdis2_GL) %>%
+  mutate(socdis_LA = socdis1_LA + socdis2_LA) %>%
+  mutate(socdis_SPP = socdis1_SPP + socdis2_SPP) %>%
+  mutate(socdis_CD = socdis1_CD + socdis2_CD)
+```
+
+```{r}
+in_cutoff <- 6
+out_cutoff <- 5
+```
+
+```{r}
+measures$in_SDP <- apply(measures["affiliation_SDP"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_NCP <- apply(measures["affiliation_NCP"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_FP <- apply(measures["affiliation_FP"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_CPF <- apply(measures["affiliation_CPF"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_GL <- apply(measures["affiliation_GL"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_LA <- apply(measures["affiliation_LA"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_SPP <- apply(measures["affiliation_SPP"], 1, FUN = function(x) x >= in_cutoff)
+measures$in_CD <- apply(measures["affiliation_CD"], 1, FUN = function(x) x >= in_cutoff)
+
+measures$out_SDP <- apply(measures["affiliation_SDP"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_NCP <- apply(measures["affiliation_NCP"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_FP <- apply(measures["affiliation_FP"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_CPF <- apply(measures["affiliation_CPF"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_GL <- apply(measures["affiliation_GL"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_LA <- apply(measures["affiliation_LA"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_SPP <- apply(measures["affiliation_SPP"], 1, FUN = function(x) x <= out_cutoff)
+measures$out_CD <- apply(measures["affiliation_CD"], 1, FUN = function(x) x <= out_cutoff)
+```
+
+```{r}
+like_bar_plot <- measures %>%
+  dplyr::select(starts_with('like_')) %>%
+  pivot_longer(everything(), names_pattern = '(.*)_(.*)', names_to = c('.value', 'party')) %>%
+  mutate(party = factor(party, levels = c('SDP', 'NCP', 'FP', 'CPF', 'GL', 'LA', 'SPP', 'CD'))) %>%
+  ggplot(aes(x = like)) +
+    #geom_bar() +
+    #geom_boxplot(width = 5) +
+    geom_bar() +
+    #geom_boxplot(aes(x = like, y = -50), width = 50) +
+    scale_x_continuous(breaks = c(0:10), labels = c(0:10)) +
+    scale_y_continuous(limits = c(0, 640), breaks = c(0,2,4,6) * 100,
+                       guide = guide_axis(angle = 45)) +
+    theme(axis.title.x = element_blank()) +
+    #theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    #      axis.title.x = element_blank()) +
+    coord_flip() +
+    xlab('Like-dislike rating') +
+    #theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+    facet_wrap(~ party, ncol = 8)
+```
+
+```{r}
+socdis_bar_plot <- measures %>%
+  dplyr::select(starts_with('socdis_')) %>%
+  pivot_longer(everything(), names_pattern = '(.*)_(.*)', names_to = c('.value', 'party')) %>%
+  mutate(party = factor(party, levels = c('SDP', 'NCP', 'FP', 'CPF', 'GL', 'LA', 'SPP', 'CD'))) %>%
+  ggplot(aes(x = socdis)) +
+    #geom_bar() +
+    #geom_boxplot(width = 5) +
+    geom_bar() +
+    #geom_boxplot(aes(x = like, y = -50), width = 50) +
+    scale_x_continuous(breaks = c(-6:6), labels = c(-6:6)) +
+    scale_y_continuous(limits = c(0, 640), breaks = c(0,2,4,6) * 100,
+                       guide = guide_axis(angle = 45)) +
+    #theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+    #      axis.title.x = element_blank()) +
+    coord_flip() +
+    xlab('Social distance scale') +
+    ylab('Number of observations') +
+    #theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+    facet_wrap(~ party, ncol = 8)
+```
+
+```{r}
+wrap_plots(list(like_bar_plot, socdis_bar_plot), nrow = 2)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure1.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10, units = 'cm', bg = 'white')
+```
+
+Compute correlations: 
+
+```{r}
+scatter_data <- measures %>%
+  dplyr::select(starts_with(c('like_', 'socdis_'))) %>%
+  pivot_longer(everything(), names_pattern = '(.*)_(.*)', names_to = c('.value', 'party')) %>%
+  mutate(party = factor(party, levels = c('SDP', 'NCP', 'FP', 'CPF', 'GL', 'LA', 'SPP', 'CD')))
+```
+
+```{r}
+like_socdis_correlations <- scatter_data %>%
+  group_by(party) %>%
+  summarise(corre = round(cor(like, socdis, use = 'complete.obs'), 2)) %>%
+  mutate(corre_label = paste('r = ', corre, sep = '')) 
+```
+
+```{r}
+scatter_data %>%
+  ggplot(aes(x = like, y = socdis)) +
+    #geom_jitter(alpha = 0.1) +
+    geom_count() +
+    scale_size_area(name = NULL, breaks = c(0,50,100,150,200,250)) +
+    geom_smooth(method = 'lm') + 
+    #geom_text(data = like_socdis_correlations, aes(label = corre)) +
+    #annotate('text', x = 1, y = 1, label = like_socdis_correlations$corre) +
+    #scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9), labels = c(1,2,3,4,5,6,7,8,9)) +
+    #scale_y_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), labels = c(0,1,2,3,4,5,6,7,8,9,10)) +
+    scale_x_continuous(breaks = c(0, 5, 10), labels = c(0, 5, 10)) +
+    scale_y_continuous(breaks = c(-6, 0, 6), labels = c(-6, 0, 6)) +
+    coord_fixed() +
+    facet_wrap(~ party, ncol = 4) +
+    ggpp::geom_label_npc(data = like_socdis_correlations, aes(npcx = 0.9, npcy = 0.1, label = corre_label)) +
+    #theme(aspect.ratio = 1) +
+    xlab('Like-dislike rating') +
+    ylab('Social distance')
+```
+
+```{r}
+ggsave(paste(output_path, 'figure2.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10, units = 'cm', bg = 'white')
+```
+
+Correlations across parties:
+
+```{r}
+partylabs <- c('LA', 'SDP', 'GL', 'SPP', 'CPF', 'NCP', 'FP', 'CD')
+```
+
+```{r}
+like_cormat <- measures %>%
+  dplyr::select('like_LA', 'like_SDP', 'like_GL', 'like_SPP',
+                'like_CPF', 'like_NCP', 'like_FP', 'like_CD') %>%
+  cor(method = 'pearson', use = 'complete.obs') %>%
+  round(1)
+
+like_pmat <- measures %>%
+  dplyr::select('like_LA', 'like_SDP', 'like_GL', 'like_SPP',
+              'like_CPF', 'like_NCP', 'like_FP', 'like_CD') %>%
+  cor_pmat(method = 'pearson')
+
+
+```
+
+```{r}
+lp <- ggcorrplot(like_cormat, outline.color = 'white', lab = TRUE, p.mat = like_pmat, sig.level = 0.01, lab_size = 3.5, insig = 'blank', type = 'lower') + theme(legend.position = 'none') + scale_x_discrete(labels = partylabs[2:8]) + scale_y_discrete(labels = partylabs[1:7]) + ggtitle('Like-dislike ratings')
+```
+
+```{r}
+socdis_cormat <- measures %>%
+  dplyr::select('socdis_LA', 'socdis_SDP', 'socdis_GL', 'socdis_SPP',
+                'socdis_CPF', 'socdis_NCP', 'socdis_FP', 'socdis_CD') %>%
+  cor(method = 'pearson', use = 'complete.obs') %>%
+  round(1)
+
+socdis_pmat <- measures %>%
+  dplyr::select('socdis_LA', 'socdis_SDP', 'socdis_GL', 'socdis_SPP',
+              'socdis_CPF', 'socdis_NCP', 'socdis_FP', 'socdis_CD') %>%
+  cor_pmat(method = 'pearson')
+
+
+```
+
+```{r}
+sdp <- ggcorrplot(socdis_cormat, outline.color = 'white', lab = TRUE, p.mat = socdis_pmat, sig.level = 0.01, lab_size = 3.5, insig = 'blank', type = 'lower') + theme(legend.position = 'none') + scale_x_discrete(labels = partylabs[2:8]) + scale_y_discrete(labels = partylabs[1:7]) + ggtitle('Social distance')
+```
+
+```{r}
+ggarrange(lp, sdp)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure3.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 8, units = 'cm', bg = 'white')
+```
+
+Next, limit ourselves to respondents who completed the whole MPID battery.
+
+```{r}
+measures_full_aff <- measures %>% dplyr::filter(across(starts_with(c('affiliation_')), ~ !is.na(.x)))
+```
+
+Get the number of inparties with the single-party method and the multiple-inparty method.
+
+```{r}
+single_n_inparties <- measures_full_aff %>%
+  compute_mpid_siap(parties, threshold = 5, variable = 'like_', aggregation_method = 'n_inparties')
+
+single_n_inparties <- data.frame(single_n_inparties) %>%
+  group_by(single_n_inparties) %>%
+  summarise(n = n()) %>%
+  replace_na(list(single_n_inparties = 0))
+```
+
+```{r}
+multi_n_inparties <- measures_full_aff %>%
+  rowwise() %>%
+  mutate(n_inparties = sum(c_across(starts_with('in_')), na.rm = TRUE)) %>%
+  ungroup() %>%
+  group_by(n_inparties) %>%
+  summarise(n_multi = n())
+```
+
+```{r}
+n_inparties_comparison <- cbindX(single_n_inparties, multi_n_inparties) %>%
+  rename(n_exclusive = n) %>%
+  dplyr::select(n_inparties, n_exclusive, n_multi) %>%
+  mutate(n_exclusive = replace_na(n_exclusive, 0))
+```
+
+```{r}
+n_inparties_comparison %>%
+  dplyr::select(n_inparties, n_exclusive, n_multi) %>%
+  mutate(n_exclusive = replace_na(n_exclusive, 0)) %>%
+  dplyr::select(n_inparties, n_multi, n_exclusive) %>%
+  pivot_longer(c(n_multi, n_exclusive), names_pattern = '(.*)_(.*)', names_to = c('.value', 'type')) %>%
+  ggplot(aes(x = n_inparties, y = n, fill = type)) +
+    geom_col(position = 'dodge') +
+    scale_fill_manual(values = c('grey30', 'grey50'), 
+                      name = 'Inparty method', 
+                      labels = c('exclusive' = 'Exclusive', 'multi' = 'Multiple')) +
+    ylab('Number of respondents') +
+    xlab('Number of inparties') +
+    scale_y_continuous(limits = c(0, 1200), breaks = 1:12 * 100) +
+    scale_x_continuous(limits = c(-0.5,8.5), breaks = c(0,1,2,3,4,5,6,7,8))
+```
+```{r}
+ggsave(paste(output_path, 'figure4.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 7, units = 'cm', bg = 'white')
+```
+
+FILTER OUT respondents with missing data in affiliation, like-dislike, or social distance fields, and with no inparties.
+
+```{r}
+measure_data <- measures %>% 
+  filter(across(starts_with(c('affiliation_', 'like_', 'socdis_')), ~ !is.na(.x))) %>%
+  rowwise() %>%
+  mutate(n_inparties = sum(c_across(starts_with('in_')), na.rm = TRUE)) %>%
+  ungroup() %>%
+  dplyr::filter(n_inparties > 0)
+```
+
+Compute SIAP using the MPID inventory:
+
+```{r}
+like_siap <- compute_mpid_siap(measure_data, parties, 'like_', threshold = 5, aggregation_method = 'mean')
+socdis_siap <- compute_mpid_siap(measure_data, parties, 'socdis_', threshold = 5, aggregation_method = 'mean')
+```
+
+Compute MIAP using the MPID inventory and default settings:
+
+```{r}
+inparty_like <- compute_group_scores(measure_data, 'in_', parties, 'like_', aggregation_method = 'mean')
+outparty_like <- compute_group_scores(measure_data, 'out_', parties, 'like_', aggregation_method = 'mean')
+inparty_socdis <- compute_group_scores(measure_data, 'in_', parties, 'socdis_', aggregation_method = 'mean')
+outparty_socdis <- compute_group_scores(measure_data, 'out_', parties, 'socdis_', aggregation_method = 'mean')
+```
+
+```{r}
+like_miap <- inparty_like - outparty_like
+socdis_miap <- inparty_socdis - outparty_socdis
+```
+
+```{r}
+ap_measures <- data.frame(cbind(like_miap, like_siap, socdis_miap, socdis_siap, 
+                                dplyr::select(measure_data, starts_with(c('closeness_', 'support_', 'affiliation_', 'like_', 'socdis1_', 'socdis2_', 'socdis_', 'in_', 'val_')), ResponseID, age, gender, language, education, political_interest, libcon, leftright, voted_party)))
+```
+
+Combine data and FILTER OUT RESPONDENTS WHO
+a) are missing one or more of the scores
+b) have a negative value for one of the scores
+
+Here's how many there are:
+
+```{r}
+ap_measures %>%
+  summarise(across(c(like_siap, like_miap, socdis_siap, socdis_miap), ~ sum(.x < 0, na.rm = TRUE)))
+```
+```{r}
+ap_measures %>%
+  dplyr::filter(socdis_miap < 0 | socdis_siap < 0 | like_miap < 0 | like_siap < 0) %>%
+  summarise(n = n())
+```
+
+Combine measures and other data in a dataframe, and rescale measures to range from -10 to 10. Also filter out respondents with missing values or negative values in scores.
+
+```{r}
+std_measures <- ap_measures %>%
+  mutate(like_miap = rescale(like_miap, to = c(-10,10), from = c(-10, 10))) %>%
+  mutate(socdis_miap = rescale(socdis_miap, to = c(-10,10), from = c(-12, 12))) %>%
+  mutate(like_siap = rescale(like_siap, to = c(-10,10), from = c(-10,10))) %>%
+  mutate(socdis_siap = rescale(socdis_siap, to = c(-10,10), from = c(-12,12))) %>%
+  rowwise() %>%
+  mutate(socdis_sd = sd(c_across(socdis1_SDP:socdis2_CD))) %>%
+  mutate(socdis1_sd = sd(c_across(socdis1_SDP:socdis1_CD))) %>%
+  mutate(socdis2_sd = sd(c_across(socdis2_SDP:socdis2_CD))) %>%
+  ungroup() %>%
+  mutate(socdis_filter = case_when(socdis1_sd == 0 & socdis2_sd == 0 ~ 0,
+                                   TRUE ~ 1)) %>%
+  dplyr::filter(across(c(like_siap, like_miap, socdis_siap, socdis_miap), ~ !is.na(.x))) %>%
+  dplyr::filter(across(c(like_siap, like_miap, socdis_siap, socdis_miap), ~ .x >= 0))
+```
+
+Plot figure with measure histograms:
+
+```{r}
+std_measures %>%
+  dplyr::select(like_miap, like_siap, socdis_miap, socdis_siap) %>%
+  dplyr::filter(across(everything(), ~ .x >= 0)) %>%
+  pivot_longer(c(like_miap, like_siap, socdis_miap, socdis_siap), names_pattern = '([a-z]+)_(.*)', names_to = c('type', 'method'), values_to = 'value') %>%
+  group_by(type, method) %>%
+  mutate(mean = round(mean(value, na.rm = TRUE), 2)) %>%
+  ungroup() %>%
+  ggplot(aes(x = value)) +
+    geom_histogram(binwidth = 0.5, boundary = 0) +
+    #stat_bin(binwidth = 0.5) +
+    geom_vline(aes(xintercept = mean), size = 1) +
+    #geom_histogram(bins = 10) +
+    scale_x_continuous(limits = c(0,10),
+                       breaks = seq(0, 10, 0.5),
+                       guide = guide_axis(angle = 45)) +
+    #scale_x_binned(limits = c(0,10), breaks = seq(0,10, by = 0.5),
+    #               guide = guide_axis(angle = 45)) +
+  #scale_x_binned(breaks = seq(0, 10, by = 0.5)) +
+    #scale_x_continuous(limits = c(0, 10)) +
+    xlab('Value') +
+    ylab('Number of observations') +
+    facet_grid(type ~ method,
+               labeller = labeller(type = c('like' = 'Like-dislike ratings', 'socdis' = 'Social distance'),
+                                   method = c('miap' = 'MIAP', 'siap' = 'SIAP'))) +
+    geom_label(data = data.frame(x = c(round(mean(std_measures$like_miap, na.rm = TRUE), 1),
+                                       round(mean(std_measures$like_siap, na.rm = TRUE), 1),
+                                       round(mean(std_measures$socdis_miap, na.rm = TRUE), 1),
+                                       round(mean(std_measures$socdis_siap, na.rm = TRUE), 1)
+                                       ),
+                                 y = 200,
+                                 type = c('like', 'like', 'socdis', 'socdis'),
+                                 method = c('miap', 'siap', 'miap', 'siap')),
+               aes(x,y, label = paste('Mean: ', as.character(x), sep = '')))
+  
+```
+
+```{r}
+ggsave(paste(output_path, 'figure5.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10, units = 'cm', bg = 'white')
+```
+
+Next, analyse correlations and plot measures against each other.
+
+```{r}
+plot_data <- std_measures %>%
+  dplyr::filter(across(c(like_siap, like_miap, socdis_siap, socdis_miap), ~ .x >= 0))
+```
+
+```{r}
+measure_correlations <- std_measures %>%
+  dplyr::select(like_siap, like_miap, socdis_siap, socdis_miap) %>%
+  summarise(cor_ls_lm = round(cor(like_siap, like_miap, method = 'pearson'), 2),
+            cor_ss_sm = round(cor(socdis_siap, socdis_miap, method = 'pearson'), 2),
+            cor_ls_ss = round(cor(like_siap, socdis_miap, method = 'pearson'), 2),
+            cor_lm_sm = round(cor(like_miap, socdis_miap, method = 'pearson'), 2)) %>%
+  mutate(across(everything(), ~ paste('r = ', .x, sep = '')))
+```
+
+```{r}
+like_siap_vs_like_miap <- std_measures %>%
+  ggplot(aes(x = like_siap, y = like_miap)) +
+    geom_jitter(width = 0.1, alpha = 0.3) +
+    geom_smooth(method = 'lm') +
+    geom_abline() +
+    scale_y_continuous(limits = c(-0.5,10.5)) +
+    scale_x_continuous(limits = c(-0.5,10.5)) +
+    xlab('Like-dislike SIAP') +
+    ylab('Like-dislike MIAP') +
+    coord_fixed() +
+    geom_label_npc(data = measure_correlations, aes(npcx = 0.1, npcy = 0.9, label = cor_ls_lm))
+
+socdis_siap_vs_socdis_miap <- std_measures %>%
+  ggplot(aes(x = socdis_siap, y = socdis_miap)) +
+    geom_jitter(width = 0.1, alpha = 0.3) +
+    geom_smooth(method = 'lm') +
+    geom_abline() +
+    scale_y_continuous(limits = c(-0.5,10.5)) +
+    scale_x_continuous(limits = c(-0.5,10.5)) +
+    xlab('Social distance SIAP') +
+    ylab('Social distance MIAP') +
+    coord_fixed() +
+    geom_label_npc(data = measure_correlations, aes(npcx = 0.1, npcy = 0.9, label = cor_ss_sm))
+
+like_siap_vs_socdis_siap <- std_measures %>%
+  ggplot(aes(x = like_siap, y = socdis_siap)) +
+    geom_jitter(width = 0.1, alpha = 0.3) +
+    geom_smooth(method = 'lm') +
+    geom_abline() +
+    scale_y_continuous(limits = c(-0.5,10.5)) +
+    scale_x_continuous(limits = c(-0.5,10.5)) +
+    xlab('Like-dislike SIAP') +
+    ylab('Social distance SIAP') +
+    coord_fixed() +
+    geom_label_npc(data = measure_correlations, aes(npcx = 0.1, npcy = 0.9, label = cor_ls_ss))
+
+like_miap_vs_socdis_miap <- std_measures %>%
+  ggplot(aes(x = like_miap, y = socdis_miap)) +
+    geom_jitter(width = 0.1, alpha = 0.3) +
+    geom_smooth(method = 'lm') +
+    geom_abline() +
+    scale_y_continuous(limits = c(-0.5,10.5)) +
+    scale_x_continuous(limits = c(-0.5,10.5)) +
+    xlab('Like-dislike MIAP') +
+    ylab('Social distance MIAP') +
+    coord_fixed() +
+    geom_label_npc(data = measure_correlations, aes(npcx = 0.1, npcy = 0.9, label = cor_lm_sm))
+```
+
+```{r}
+wrap_plots(list(like_siap_vs_like_miap, socdis_siap_vs_socdis_miap, like_siap_vs_socdis_siap, like_miap_vs_socdis_miap), nrows = 2)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure6.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 15, units = 'cm', bg = 'white')
+```
+
+Now, let's move to modelling the data with linear regression.
+
+```{r}
+model_data <- std_measures %>%
+  dplyr::select(like_miap, like_siap,
+                socdis_miap, socdis_siap,
+                age, gender, language, education, political_interest,
+                libcon, leftright,
+                voted_party,
+                ResponseID, socdis_filter) %>%
+  na.omit() %>%
+  
+  mutate(age_c = as.numeric(scale(age, scale = FALSE))) %>%
+  
+  mutate(leftright_c = leftright - 5) %>%
+  mutate(libcon_c = libcon - 5) %>%
+  
+  mutate(leftright_mean_c = scale(leftright, scale = FALSE)) %>%
+  mutate(libcon_mean_c = scale(libcon, scale = FALSE)) %>%
+
+  
+  #mutate(leftright_c = leftright - round(mean(leftright, na.rm = TRUE))) %>%
+  #mutate(libcon_c = libcon - round(mean(libcon, na.rm = TRUE))) %>%
+  
+  mutate(language = factor(language, levels = c('Finnish', 'Swedish', 'Other'))) %>%
+  mutate(gender = relevel(gender, ref = 'male')) %>%
+  mutate(education_recoded = dplyr::recode(education,
+                                           'elementary school' = 'low',
+                                           'vocational education' = 'middle',
+                                           'ylioppilastutkinto' = 'middle',
+                                           'polytechnic' = 'high',
+                                           'university' = 'high',
+                                           'phd' = 'highest')) %>%
+  mutate(education_recoded_numeric = 5 - as.numeric(education_recoded)) %>%
+  mutate(education_recoded_numeric_c = as.numeric(scale(education_recoded_numeric, scale = FALSE))) %>%
+  #mutate(education = relevel(education, ref = 'university')) %>%
+  
+  mutate(political_interest_numeric = 4 - as.numeric(political_interest)) %>%
+  mutate(political_interest_numeric_c = as.numeric(scale(political_interest_numeric, scale = FALSE))) %>%
+  #mutate(political_interest = relevel(dplyr::recode(political_interest,
+  #                                          'not interested' = 'not interested',
+  #                                          'not very interested' = 'not interested',
+  #                                          'somewhat interested' = 'somewhat interested',
+  #                                          'very interested' = 'very interested'), ref = 'very interested')) %>%
+  
+  mutate(voted_party = factor(dplyr::recode(voted_party,
+                                     "Don't remember" = 'None',
+                                     "missing" = 'None'),
+                               levels = c('None', 'SDP', 'NCP', 'FP', 'CPF', 'GL', 'LA', 'SPP', 'CD', 'Other')))
+```
+
+Set stuff up for regression analyses and run lm.
+
+```{r}
+independent_formula_numeric <- 'leftright_c + I(leftright_c^2) + libcon_c + I(libcon_c^2) + voted_party + age + gender + language + education_recoded_numeric_c + political_interest_numeric_c'
+```
+
+```{r}
+like_models_full <- lapply(c('like_miap', 'like_siap'), FUN = function(x) lm(paste(x, independent_formula_numeric, sep = ' ~ '), data = model_data))
+
+socdis_models_full <- lapply(c('socdis_miap', 'socdis_siap'), FUN = function(x) lm(paste(x, independent_formula_numeric, sep = ' ~ '), data = model_data))
+```
+
+```{r}
+like_miap_reg_plots <- plot_model_marginals(like_models_full[[1]], draw_x = 'no', min_y = 0, max_y = 10, dependent_var = 'Like-dislike rating\nMIAP')
+like_siap_reg_plots <- plot_model_marginals(like_models_full[[2]], draw_x = 'yes', min_y = 0, max_y = 10, dependent_var = 'Like-dislike rating\nSIAP')
+socdis_miap_reg_plots <- plot_model_marginals(socdis_models_full[[1]], draw_x = 'no', min_y = 0, max_y = 10, dependent_var = 'Social distance\nMIAP')
+socdis_siap_reg_plots <- plot_model_marginals(socdis_models_full[[2]], draw_x = 'yes', min_y = 0, max_y = 10, dependent_var = 'Social distance\nSIAP')
+```
+
+```{r}
+wrap_plots(c(like_miap_reg_plots, like_siap_reg_plots), ncol = 3)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure7.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10.5, units = 'cm', bg = 'white')
+```
+
+```{r}
+wrap_plots(c(socdis_miap_reg_plots, socdis_siap_reg_plots), ncol = 3)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure8.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10.5, units = 'cm', bg = 'white')
+```
+
+Logistic regression:
+
+```{r}
+filter_model <- glm(socdis_filter ~ leftright_c + I(leftright_c^2) + libcon_c + I(libcon_c^2) + voted_party + age + gender + language + education_recoded_numeric_c + political_interest_numeric_c, family = binomial, data = model_data)
+```
+
+```{r}
+socdis_filter_reg_plots <- plot_model_marginals(filter_model, draw_x = 'yes', min_y = 0, max_y = 1, dependent_var = 'Pr(Non-zero social distance)', coord_ratio = 10)
+```
+
+```{r}
+wrap_plots(socdis_filter_reg_plots, ncol = 3)
+```
+
+```{r}
+ggsave(paste(output_path, 'figure9.', figure_format, sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 6.5, units = 'cm', bg = 'white')
+```
+
+Finally, fit similar models to the subsample, from which respondents with exact zero social distance have been removed. This appears in the appendix, but is essentially a part of the main analysis.
+
+```{r}
+like_models_filtered <- lapply(c('like_miap', 'like_siap'), FUN = function(x) lm(paste(x, independent_formula_numeric, sep = ' ~ '), data = model_data %>% filter(socdis_filter == 1)))
+
+socdis_models_filtered <- lapply(c('socdis_miap', 'socdis_siap'), FUN = function(x) lm(paste(x, independent_formula_numeric, sep = ' ~ '), data = model_data %>% filter(socdis_filter == 1)))
+```
+
+```{r}
+like_miap_reg_plots_filtered <- plot_model_marginals(like_models_filtered[[1]], draw_x = 'no', min_y = 0, max_y = 10, dependent_var = 'Like-dislike rating\nMIAP')
+like_siap_reg_plots_filtered <- plot_model_marginals(like_models_filtered[[2]], draw_x = 'yes', min_y = 0, max_y = 10, dependent_var = 'Like-dislike rating\nSIAP')
+socdis_miap_reg_plots_filtered <- plot_model_marginals(socdis_models_filtered[[1]], draw_x = 'no', min_y = 0, max_y = 10, dependent_var = 'Social distance\nMIAP')
+socdis_siap_reg_plots_filtered <- plot_model_marginals(socdis_models_filtered[[2]], draw_x = 'yes', min_y = 0, max_y = 10, dependent_var = 'Social distance\nSIAP')
+```
+
+```{r}
+wrap_plots(c(like_miap_reg_plots_filtered, like_siap_reg_plots_filtered), ncol = 3)
+```
+
+```{r}
+ggsave(paste(output_path, 'like_regression_models_filtered.png', sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10.5, units = 'cm', bg = 'white')
+```
+
+```{r}
+wrap_plots(c(socdis_miap_reg_plots_filtered, socdis_siap_reg_plots_filtered), ncol = 3)
+```
+
+```{r}
+ggsave(paste(output_path, 'socdis_regression_models_filtered.png', sep = ''), plot = last_plot(), dpi = 'print', width = 15, height = 10.5, units = 'cm', bg = 'white')
+```
+
+Finally, combine everything in a big regression table. The tables in the appendix have been created from this.
+
+```{r}
+#export_summs(append(append(append(like_models_full, socdis_models_full), list(filter_model), like_models_filtered),
+export_summs(c(like_models_full, socdis_models_full, list(filter_model), like_models_filtered, socdis_models_filtered),
+             robust = TRUE,
+             model.names = c('Like MIAP', 'Like SIAP', 'Social MIAP', 'Social distance SIAP', 'Social distance filter', 'Like MIAP (filter)', 'Like SIAP (filter)', 'Social distance MIAP (filter)', 'Social distance SIAP (filter)'), 
+             error_format = '[{conf.low},{conf.high}]',
+             error_pos = 'same',
+             coefs = c('Intercept' = '(Intercept)',
+                       'Left-right' = 'leftright_c',
+                       'Left-right^2' = 'I(leftright_c^2)',
+                       'Liberal-conservative' = 'libcon_c',
+                       'Liberal_conservative^2' = 'I(libcon_c^2)',
+                       'Party choice: SDP' = 'voted_partySDP',
+                       'Party choice: FP' = 'voted_partyFP',
+                       'Party choice: NCP' = 'voted_partyNCP',
+                       'Party choice: CPF' = 'voted_partyCPF',
+                       'Party choice: GL' = 'voted_partyGL',
+                       'Party choice: LA' = 'voted_partyLA',
+                       'Party choice: SPP' = 'voted_partySPP',
+                       'Party choice: CD' = 'voted_partyCD',
+                       'Party choice: Other' = 'voted_partyOther',
+                       'Age' = 'age',
+                       'Gender: Female' = 'genderfemale',
+                       'Gender: Other'  = 'genderother',
+                       'Language: Swedish' = 'languageSwedish',
+                       'Language: Other' = 'languageOther',
+                       'Education' = 'education_recoded_numeric_c',
+                       'Political interest' = 'political_interest_numeric_c'),
+             to.file = 'xlsx',
+             file.name = paste(output_path, 'regression_table.xlsx', sep = ''))
+```
